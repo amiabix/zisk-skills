@@ -4,6 +4,9 @@ Agent skills for [ZisK zkVM](https://github.com/0xPolygonHermez/zisk) developmen
 
 Built for [Claude Code](https://claude.com/claude-code) skills; the SKILL.md format is plain markdown and portable to any agent harness that loads skill files.
 
+<img width="2560" height="1280" alt="zisk-skills-monument" src="https://github.com/user-attachments/assets/c18cf5ae-133e-4416-b05a-e8cd5f36f649" />
+
+
 ## The skills
 
 | Skill | What it does | Use when |
