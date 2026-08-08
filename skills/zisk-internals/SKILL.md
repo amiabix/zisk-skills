@@ -1,60 +1,153 @@
 ---
 name: zisk-internals
-description: Reason about ZisK zkVM proving mechanics from source - what a step costs, why proving cost jumps in discrete increments, why RAM scales, how the recursion tree composes, and where each -X number comes from. Use when explaining or predicting proving cost/memory behavior, debugging OOMs or step-function cost jumps, interpreting instance counts, sizing hardware, or when ziskemu profiling numbers and real prover behavior disagree.
+description: Explains and predicts ZisK proving cost, memory, instance planning, recursion shape, Assembly behavior, hints, and `ziskemu -X` accounting. Use when small code changes cause large cost jumps, proof RAM/time differs from emulator metrics, or hardware/prover sizing needs source-backed reasoning.
+license: MIT
+metadata:
+  version: "1.1.0"
+  domain: zkvm
+  triggers: ZisK internals, instance count, proving memory, OOM, recursion, ziskemu -X, Assembly, cost model, hardware sizing, proofman
+  role: specialist
+  scope: diagnosis
+  output-format: explanation
+  related-skills: zisk-developer, zisk-optimizer, debugging-wizard
 ---
 
 # ZisK Internals
 
-Explains *why* ZisK costs behave the way they do, so optimization and debugging decisions rest on mechanism, not folklore. Everything here is a model to re-verify against the pinned source tree, constants drift between releases; the mechanisms drift slowly.
+Senior ZisK internals engineer for explaining why ZisK costs, memory, and proof behavior look the way they do. Uses docs for concepts and pinned source/logs for release-specific constants, planners, executor behavior, and proof-system details.
 
-## The Three Mental Models
+## Core Workflow
 
-**1. Cost is quantized by instances, not accumulated smoothly.**
-Execution splits into chunks; op counts pack into fixed-capacity AIR instances (each AIR's row count is hardwired in the generated trace definitions, `pil/src/pil_helpers/traces.rs`). One op past a capacity boundary materializes an entire padded instance *plus* its recursion legs. Profiling cost (`-X TOTAL`) moves linearly; real prover cost moves in steps. Predict real cost with an execute-only run's instance counts, not with TOTAL deltas. Beware planner nonlinearities: some state machines toggle on/off per run based on layout-size comparisons, instance-set diffs are not always caused by your code change.
+1. **Pin execution context** - Record ZisK version/source, CLI/SDK path, ELF, stdin, executor, proof type, flags, hardware, and logs.
+2. **Separate metrics** - Distinguish guest steps, `-X TOTAL`, named operation rows, memory rows, instance counts, final prover cost, and wall time.
+3. **Find the planning boundary** - Check whether the change crosses an AIR capacity, memory segment, recursion roster, or proof-mode threshold.
+4. **Trace the bucket** - Read the pinned stats/planner/source for MAIN, MEMORY, PRECOMPILES, named ops, hints, or recursion instead of inferring from labels.
+5. **Explain mechanism** - State whether behavior is linear work, fixed BASE, padded instance cost, memory preallocation, hint/Assembly behavior, or proof recursion.
+6. **Verify with a run** - Reproduce with the smallest exact command that shows the mechanism; use prover logs for proof-path claims.
 
-**2. RAM scales through three mechanisms, all front-loaded.**
-(a) Minimal traces (∝ total steps) stay resident for the whole proof; (b) witness for all owned instances materializes up front in the contributions phase; (c) prover buffers, and SNARK/Plonk buffers if preloaded, are preallocated at construction, before any proving. OOMs at startup implicate (c); OOMs during witness implicate (a)+(b); `minimal_memory` and per-block splitting attack (b).
+## Reference Guide
 
-**3. The recursion tree has a fixed shape.**
-Basic STARKs → per-AIR Compressor → Recursive1 (embeds the aggregation VK) → k-ary Recursive2 tree (padded with null proofs) → VadcopFinal → optional compressed/SNARK wrap. Absent state machines are proven as null proofs, so the final circuit never changes shape, that fixed roster is part of the BASE floor you pay even for a trivial guest.
+Load source/docs by symptom:
 
-## Cost Accounting, where -X numbers come from
+| Topic | Reference | Load When |
+| --- | --- | --- |
+| Guest I/O and public output cost | ZisK docs page "Input / Output"; pinned `ziskos` source | Explaining input/frame layout, public output size, or commit order effects |
+| CLI flags and proving modes | ZisK `cargo-zisk` docs pages; `<tool> --help` | Explaining `prove`, `execute`, `--gpu`, `--minimal`, `--plonk`, `--minimal-memory`, `--unlock-mapped-memory` |
+| Precompiles/wrappers | ZisK library docs pages; patched crates and syscall source | Explaining named operation rows, software fallback, or syscall cost |
+| Hints | ZisK SDK hints docs; Assembly/hints source | Explaining hint setup, hint streams, Assembly-only behavior, or worker memory |
+| Emulator profiling | Pinned emulator stats source | Explaining `-X` categories, ROI output, named ops, FROPS, or accounting gaps |
+| Instance planning | Pinned executor/state-machine planner source | Explaining step-function cost jumps, padding, row capacities, or memory segmentation |
+| Recursion/proofman | Pinned proofman/recursion/snark-wrapper source and logs | Explaining aggregation stages, null proofs, final proof shape, SNARK wrapping, or OOM |
 
-- A **step is one ZisK op**, not one RISC-V instruction (atomics and CSR ops expand; some patterns fuse to free ops). MAIN = steps × a per-step constant. OPCODES = per-op constants from the op table (`core/src/zisk_ops.rs` + cost files). PRECOMPILES = ops with input payloads **plus DMA traffic**, libc memcpy/memcmp/memset are globally replaced with DMA precompile ops, so this bucket is polluted by ordinary memory work; judge crypto acceleration only by named op rows. MEMORY prices 8-byte-aligned access cheap and everything else expensive; sub-8-byte access is never cheap.
-- BASE is a fixed ROM+tables floor. When it dominates, report VARIABLE (= TOTAL - BASE) or your win/regression is distorted.
-- FROPS: op instances whose operands fall in precomputed table ranges are discharged as lookups and **excluded from TOTAL**, constant-heavy code is cheaper than the raw op costs imply.
-- Costs are proof-area units, not time. Fcalls cost zero at the op level; their price is the in-guest verification that follows.
-- The stats collector has known accounting gaps (e.g., some precompiles' memory traffic uncounted, unaligned writes billed at read prices in some releases), treat `-X` as a ranking signal, verified against the pinned emulator source when a bucket looks wrong.
+## Key Patterns with Examples
 
-## Reasoning Moves
+### Metric Split
 
-1. **Predict a jump before making a change**: estimate the op-count delta for the dominating primitive against its AIR capacity; crossing a multiple = a new instance.
-2. **Attribute an OOM**: at startup → preallocation (SNARK preload, prover buffers); during contributions/witness → resident traces + upfront witness; during aggregation → payload count × per-proof buffers.
-3. **Explain "steps dropped but cost didn't"**: BASE floor, instance padding, or the win landed in an op that FROPS already absorbed.
-4. **Get real cost cheaply**: run the execute-only/instance-plan path (no proving keys) and count instances per AIR.
+```text
+steps: semantic guest execution length
+X_TOTAL: emulator cost/proof-area ranking signal
+named op rows: primitive-specific evidence
+instance count: final proving shape and padded cost driver
+wall time: machine/prover/hardware result, not portable by itself
+```
 
-## Where Truth Lives
+Do not collapse these into one number. A steps win can disappear if the instance roster is unchanged, and a small step increase can be irrelevant if it does not cross a capacity boundary.
 
-| Question | Look in |
-| --- | --- |
-| Op table, opcodes, per-op costs, precompile params | `core/src/zisk_ops.rs`, cost constant files in `core/`/`emulator/` |
-| Stat bucket computation, FROPS accounting | `emulator/src/stats/` |
-| AIR row capacities (instance sizes) | `pil/src/pil_helpers/traces.rs` |
-| Planners (packing, toggles, memory segmentation) | `state-machines/*/src/*_planner.rs`, `common/src/planner_helpers.rs` |
-| Chunking, witness replay, execute-only mode | `executor/src/` |
-| Recursion stages, null proofs, preallocation | the pinned pil2-proofman rev (`proofman.rs`, `recursion.rs`, `snark_wrapper.rs`) |
-| Memory map, publics collection | `core/src/mem.rs`, `executor/src/adapters.rs` |
+### BASE / VARIABLE
 
-## MUST
+```text
+BASE = fixed ROM/tables/recursion floor
+VARIABLE = marginal work from input size
+```
 
-- Re-verify capacities and cost constants against the pinned tree before quoting them, they are release-specific.
-- Distinguish profiling cost (linear, best-case) from final prover cost (instance-quantized) in every report.
-- Use named op rows, never the PRECOMPILES bucket total, as acceleration evidence.
-- Use instance counts for hardware sizing and final-cost claims.
+When a program has high BASE and small input, report variable cost separately. This avoids overstating optimizations that only affect a small marginal component.
 
-## MUST NOT
+### PRECOMPILES Bucket Trap
 
-- Extrapolate proving RAM or time linearly from steps.
-- Treat -X TOTAL as the prover's bill.
-- Assume an instance-plan diff was caused by the guest change under test.
-- Quote this file's mechanisms against a different ZisK generation without re-checking the source.
+```text
+PRECOMPILES total = dedicated primitive rows + DMA/support traffic
+evidence of acceleration = named operation rows + source path
+```
+
+Use named rows and source tracing to prove acceleration. Treat crypto inside MAIN as likely software fallback until source proves otherwise.
+
+### Memory And Proof OOM
+
+```text
+startup OOM -> preallocation, proving keys, ROM mmap, SNARK/PLONK buffers
+witness/contribution OOM -> traces plus owned instances
+aggregation OOM -> proof count, recursion buffers, final wrapper
+```
+
+Flags such as minimal memory, witness storage caps, and unlocked mapped memory are proof-system/hardware levers. They do not change the guest theorem.
+
+### Recursion Shape
+
+```text
+basic STARKs
+  -> compressor/aggregation layers
+  -> final recursive proof
+  -> optional PLONK/SNARK wrapper for on-chain verification
+```
+
+The exact layer names and roster are source-version-specific. Always read the pinned proofman/recursion source before quoting details.
+
+## Validation Commands
+
+Use the project path first. Generic diagnostics:
+
+```bash
+cargo-zisk --version
+ziskemu --version
+ziskemu -e <guest.elf> -i <input.stdin> --steps
+ziskemu -e <guest.elf> -i <input.stdin> -X --no-thousands-sep
+cargo-zisk execute --elf <guest.elf> --inputs <input.stdin>
+cargo-zisk prove --elf <guest.elf> --inputs <input.stdin> --verbose
+```
+
+For memory/GPU diagnostics:
+
+```bash
+ulimit -l
+nvidia-smi
+cargo-zisk prove --elf <guest.elf> --inputs <input.stdin> --gpu --verbose
+cargo-zisk prove --elf <guest.elf> --inputs <input.stdin> --minimal-memory --verbose
+cargo-zisk prove --elf <guest.elf> --inputs <input.stdin> --unlock-mapped-memory --verbose
+```
+
+Flags drift. Confirm with `<tool> --help` and pinned source.
+
+## Constraints
+
+### MUST DO
+
+- Recheck planner capacities, cost constants, CLI flags, and recursion stages against the pinned source.
+- Distinguish profiling cost from final prover cost in every explanation.
+- Use named op rows and source paths for acceleration claims.
+- Use instance counts and prover logs for hardware sizing and final-cost claims.
+- Use Assembly/prover logs for hints, GPU, mmap, memory, recursion, and proof success.
+- Report input shape and machine shape when comparing proof times.
+
+### MUST NOT DO
+
+- Extrapolate proving RAM or wall time linearly from steps.
+- Treat `-X TOTAL` as the final prover bill.
+- Assume an instance-plan diff was caused by the guest change without checking planner/log evidence.
+- Use emulator-only output as proof of hints, GPU, Assembly, recursion, or on-chain verifier behavior.
+- Quote release-specific capacities, row sizes, flags, or file lines without checking the current source.
+
+## Output Templates
+
+When explaining internals, provide:
+
+1. Pinned tree/toolchain
+2. Input, ELF, executor, proof mode, hardware
+3. Observed metric
+4. Mechanism
+5. Evidence from source/docs
+6. Evidence from run/log
+7. Residual uncertainty
+
+## Knowledge Reference
+
+ZisK execution steps, emulator stats, `ziskemu -X`, MAIN, MEMORY, PRECOMPILES, named op rows, BASE, VARIABLE, FROPS, fcalls, Assembly executor, hints, `ZiskHints`, `ZiskStream`, GPU proving, minimal memory, mmap/unlocked memory, AIR instances, planner capacity, trace rows, proofman, recursion, compressor layers, final recursive proof, PLONK/SNARK wrapping, verifier artifacts, OOM diagnosis, hardware sizing.
