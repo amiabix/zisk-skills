@@ -11,14 +11,14 @@ Use this skill to optimize a ZisK program without guessing. The workflow is: sta
 
 ## Core Workflow
 
-1. **Pin the tree and input** — Record ZisK version, source revision, ELF, stdin, feature flags, host command, and input shape.
-2. **State the theorem** — Name private inputs, public outputs, verifier/binder consumers, and trust boundary before proposing optimizations.
-3. **Measure first** — Run emulator/profile and project host cost commands on the same input. Rank regions before touching code.
-4. **Prove acceleration** — Trace patches/wrappers/syscalls in source and confirm named operation rows in `ziskemu -X`.
-5. **Find the loop** — Identify the repeated primitive, parser, tree walk, copy, or witness read behind the top region.
-6. **Name the authenticated replacement** — Replace work only with a committed root, header field, monotone counter, child proof, lookup/memory argument, dirty-cache invariant, or explicit trust cut.
-7. **Validate** — Add the smallest negative test for omission/forgery/reorder/default, prefer a reference implementation that shares no code with the guest when available, rerun the same benchmark, and report before/after.
-8. **Micro-pass last** — After the theorem, tests, and metrics are correct, do one small pass for obvious loop/copy/allocation simplification. Do not trade clarity or soundness for tiny step wins.
+1. **Pin the tree and input**, Record ZisK version, source revision, ELF, stdin, feature flags, host command, and input shape.
+2. **State the theorem**, Name private inputs, public outputs, verifier/binder consumers, and trust boundary before proposing optimizations.
+3. **Measure first**, Run emulator/profile and project host cost commands on the same input. Rank regions before touching code.
+4. **Prove acceleration**, Trace patches/wrappers/syscalls in source and confirm named operation rows in `ziskemu -X`.
+5. **Find the loop**, Identify the repeated primitive, parser, tree walk, copy, or witness read behind the top region.
+6. **Name the authenticated replacement**, Replace work only with a committed root, header field, monotone counter, child proof, lookup/memory argument, dirty-cache invariant, or explicit trust cut.
+7. **Validate**, Add the smallest negative test for omission/forgery/reorder/default, prefer a reference implementation that shares no code with the guest when available, rerun the same benchmark, and report before/after.
+8. **Micro-pass last**, After the theorem, tests, and metrics are correct, do one small pass for obvious loop/copy/allocation simplification. Do not trade clarity or soundness for tiny step wins.
 
 ## Non-Negotiables
 

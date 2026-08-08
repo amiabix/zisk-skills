@@ -1,6 +1,6 @@
 # zisk-skills
 
-Agent skills for [ZisK zkVM](https://github.com/0xPolygonHermez/zisk) development — battle-tested working methods for writing, optimizing, understanding, and auditing ZisK guest programs and proving pipelines.
+Agent skills for [ZisK zkVM](https://github.com/0xPolygonHermez/zisk) development, battle-tested working methods for writing, optimizing, understanding, and auditing ZisK guest programs and proving pipelines.
 
 Built for [Claude Code](https://claude.com/claude-code) skills; the SKILL.md format is plain markdown and portable to any agent harness that loads skill files.
 
@@ -15,13 +15,13 @@ Built for [Claude Code](https://claude.com/claude-code) skills; the SKILL.md for
 
 ## Design philosophy
 
-These skills are **principle graphs, not documentation mirrors**. They teach the working method and point at where truth lives in the ZisK source tree; they deliberately avoid embedding version-specific facts (API signatures, cost constants, file:line references) that rot on every release. When a skill and the source disagree, the source wins — the skills tell you to check.
+These skills are **principle graphs, not documentation mirrors**. They teach the working method and point at where truth lives in the ZisK source tree; they deliberately avoid embedding version-specific facts (API signatures, cost constants, file:line references) that rot on every release. When a skill and the source disagree, the source wins, the skills tell you to check.
 
 They were built by field-testing against real guests and measuring the outcome:
 
 - The developer + optimizer skills were validated on fresh guest programs across four optimization strategy levels (precompile swaps, wire-format redesign, recompute-to-witness-verify, curve crypto) with wins from 8.5× to ~20,000× steps, every result gated by differential outputs and negative tests.
-- In A/B trials (same task, same model, with vs. without skills), the skills' measured value was **reporting correctness and fail-closed testing discipline** — e.g. preventing a steps-only headline that overstated a real proving-area win by 16×.
-- `zisk-internals` and `zisk-soundness` distill a line-level read of the ZisK source (execution core, planners, proofman recursion, guest runtime, SDK/verifier/contracts) and a full sweep of the official docs — capturing exactly the load-bearing knowledge the docs don't teach.
+- In A/B trials (same task, same model, with vs. without skills), the skills' measured value was **reporting correctness and fail-closed testing discipline**, e.g. preventing a steps-only headline that overstated a real proving-area win by 16×.
+- `zisk-internals` and `zisk-soundness` distill a line-level read of the ZisK source (execution core, planners, proofman recursion, guest runtime, SDK/verifier/contracts) and a full sweep of the official docs, capturing exactly the load-bearing knowledge the docs don't teach.
 
 ## Install (Claude Code)
 
@@ -38,11 +38,11 @@ Claude Code auto-discovers them; invoke explicitly with `/zisk-developer`, `/zis
 
 ## Versioning caveat
 
-Skills are validated against the ZisK 1.0.0-alpha line. Because they are principle-based they should survive releases well, but constants and APIs they route you toward live in *your* pinned ZisK tree — the skills' own rules (verify at the definition site, prove compatibility by build + run) are the upgrade path.
+Skills are validated against the ZisK 1.0.0-alpha line. Because they are principle-based they should survive releases well, but constants and APIs they route you toward live in *your* pinned ZisK tree, the skills' own rules (verify at the definition site, prove compatibility by build + run) are the upgrade path.
 
 ## Contributing
 
-Improvements welcome — especially field reports where a skill's guidance was wrong or silent. The bar for adding content: it must be a principle or a pointer, verified against source, not a fact that a release bump can silently invalidate.
+Improvements welcome, especially field reports where a skill's guidance was wrong or silent. The bar for adding content: it must be a principle or a pointer, verified against source, not a fact that a release bump can silently invalidate.
 
 ## License
 

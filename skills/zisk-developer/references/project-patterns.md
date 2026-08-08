@@ -10,12 +10,12 @@ Use for normal application proofs.
 
 Typical shape:
 
-- `guest/` — RISC-V guest binary crate (`#![no_main]`, `ziskos::entrypoint!(main)`)
-- `host/` — host binary crate(s) plus `build.rs` calling `build_program("../guest")`
-- optional `common/` — shared types between host and guest
+- `guest/`, RISC-V guest binary crate (`#![no_main]`, `ziskos::entrypoint!(main)`)
+- `host/`, host binary crate(s) plus `build.rs` calling `build_program("../guest")`
+- optional `common/`, shared types between host and guest
 - host `build.rs`
 
-Bin layout convention. The canonical examples in `~/zisk/examples/` put host bin entry points at `host/bin/<name>.rs` (not the Cargo-default `src/bin/`) and declare them explicitly via `[[bin]]` blocks in `Cargo.toml`. See `examples/sha-hasher/host/Cargo.toml:20-42`. Newcomers expecting the Cargo default will be confused. The target repo may follow either convention — always check `Cargo.toml`.
+Bin layout convention. The canonical examples in `~/zisk/examples/` put host bin entry points at `host/bin/<name>.rs` (not the Cargo-default `src/bin/`) and declare them explicitly via `[[bin]]` blocks in `Cargo.toml`. See `examples/sha-hasher/host/Cargo.toml:20-42`. Newcomers expecting the Cargo default will be confused. The target repo may follow either convention, always check `Cargo.toml`.
 
 This is the default pattern for new application work.
 
@@ -64,10 +64,10 @@ if !ziskos::io::verify_zisk_proof(&proof2) { panic!("Proof 2 verification failed
 
 Key APIs (verify against current source before quoting):
 
-- `client.prepare_send_proof(&proof, &publics, &vk) -> Result<Vec<u8>>` — host serializer
-- `stdin.write_proof(&bytes)` — distinct from `stdin.write(&value)`
-- `ziskos::io::read_proof() -> &[u8]` (zkvm) / `Box<[u8]>` (non-zkvm) — `ziskos/entrypoint/src/io.rs:50-59`
-- `ziskos::io::verify_zisk_proof(&bytes) -> bool` — `ziskos/entrypoint/src/io.rs:83-86`
+- `client.prepare_send_proof(&proof, &publics, &vk) -> Result<Vec<u8>>`, host serializer
+- `stdin.write_proof(&bytes)`, distinct from `stdin.write(&value)`
+- `ziskos::io::read_proof() -> &[u8]` (zkvm) / `Box<[u8]>` (non-zkvm), `ziskos/entrypoint/src/io.rs:50-59`
+- `ziskos::io::verify_zisk_proof(&bytes) -> bool`, `ziskos/entrypoint/src/io.rs:83-86`
 
 Recursive verification of external Groth16/PLONK proofs typically lands on the BN254 curve and complex-operation precompiles at Layer 4 of the optimization stack; check whether a `substrate-bn` patch or higher-level wrapper path exists before dropping to raw syscalls.
 

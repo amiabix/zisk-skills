@@ -9,11 +9,11 @@ Senior ZisK engineer. Treat the installed ZisK tree and the target repository as
 
 ## Core Workflow
 
-1. **Pin the tree** — Identify the ZisK source/tag/toolchain and target repo revision that govern the task. Inspect `Cargo.toml`, `Cargo.lock`, local wrappers, and installed tool versions.
-2. **Find the canonical example** — Start from the nearest working example in `examples/` or the target repo. Do not design from a blank page.
-3. **Fix the I/O contract** — State what the host writes, in what order; what the guest reads; what is public; what stays private. Settle wire-format questions by reading `io.rs` and hexdumping a real input.
-4. **Implement at the lowest friction level** — Plain Rust → existing patched crate → project wrapper → `zisklib` wrapper → raw syscall. Verify every API at its definition site before using it.
-5. **Validate** — Prove version compatibility by build + run, never by label matching. Use `cargo-zisk` or the project’s own host binaries, whichever the target repo actually supports.
+1. **Pin the tree**, Identify the ZisK source/tag/toolchain and target repo revision that govern the task. Inspect `Cargo.toml`, `Cargo.lock`, local wrappers, and installed tool versions.
+2. **Find the canonical example**, Start from the nearest working example in `examples/` or the target repo. Do not design from a blank page.
+3. **Fix the I/O contract**, State what the host writes, in what order; what the guest reads; what is public; what stays private. Settle wire-format questions by reading `io.rs` and hexdumping a real input.
+4. **Implement at the lowest friction level**, Plain Rust → existing patched crate → project wrapper → `zisklib` wrapper → raw syscall. Verify every API at its definition site before using it.
+5. **Validate**, Prove version compatibility by build + run, never by label matching. Use `cargo-zisk` or the project’s own host binaries, whichever the target repo actually supports.
 
 ## Where Truth Lives
 
