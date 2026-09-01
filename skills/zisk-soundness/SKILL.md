@@ -3,7 +3,7 @@ name: zisk-soundness
 description: Reviews ZisK zkVM guest soundness, proof aggregation, recursion, hints, fcalls, syscalls, split-pipeline welds, public output binding, on-chain verifier wiring, and trust boundaries. Use when a proof will be consumed by another guest, contract, service, or external verifier.
 license: MIT
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
   domain: zkvm
   triggers: ZisK soundness, zkVM audit, proof aggregation, recursion, hints, fcall, syscall, verifier, VK binding, public outputs, trust boundary
   role: auditor

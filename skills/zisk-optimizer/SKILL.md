@@ -3,7 +3,7 @@ name: zisk-optimizer
 description: Reduces ZisK zkVM guest steps, cost, memory, and proof time by measuring real bottlenecks, verifying acceleration paths, and replacing recomputation with theorem-preserving checks. Use for `ziskemu -X`, precompile audits, hints/Assembly/GPU behavior, witness layout, wire-format redesign, proof-shape comparisons, and cost reports.
 license: MIT
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
   domain: zkvm
   triggers: ZisK optimization, ziskemu -X, precompile, Assembly, hints, GPU proving, witness cost, proof time, guest cost, zkVM profiling
   role: specialist
@@ -33,7 +33,7 @@ Load docs/source based on the optimization target:
 
 | Topic | Reference | Load When |
 | --- | --- | --- |
-| Guest I/O and public outputs | ZisK docs page "Input / Output"; pinned `ziskos` source | Changing witness layout, `read`, `read_input_slice`, `commit`, or `commit_slice` |
+| Guest I/O and public outputs | ZisK docs page "Input / Output"; pinned `ziskos` source | Changing witness layout, `read`, `read_slice`, `commit`, or `commit_slice` |
 | CLI and proving flags | ZisK docs pages for `cargo-zisk`; `<tool> --help` | Using `build`, `execute`, `prove`, `setup`, `--gpu`, `--minimal-memory`, `--unlock-mapped-memory`, or hints flags |
 | Host SDK | ZisK SDK docs pages; pinned `sdk/src` | Changing `ProverClient`, `ZiskStdin`, `GuestProgram`, proof requests, hints, or streams |
 | Precompiles and wrappers | ZisK library docs pages; patched crates in `Cargo.lock` | Checking whether crypto is accelerated or falling back to software |
@@ -134,7 +134,7 @@ For proof-path behavior, use the relevant proving flags:
 ```bash
 cargo-zisk prove --elf <guest.elf> --inputs <input.stdin> --gpu
 cargo-zisk prove --elf <guest.elf> --inputs <input.stdin> --minimal-memory
-cargo-zisk prove --elf <guest.elf> --inputs <input.stdin> --unlock-mapped-memory
+cargo-zisk prove --elf <guest.elf> --asm --inputs <input.stdin> --unlock-mapped-memory
 ```
 
 For hints, validate Assembly/prover mode:
@@ -142,7 +142,7 @@ For hints, validate Assembly/prover mode:
 ```bash
 RUSTFLAGS='--cfg zisk_hints' cargo build --release
 cargo-zisk setup --elf <guest.elf> --asm --hints
-cargo-zisk prove --elf <guest.elf> --asm --inputs <input.stdin> --hints <hints-file>
+cargo-zisk prove --elf <guest.elf> --asm --hints file:///abs/path/hints.bin
 ```
 
 Command names and flags drift. Check `<tool> --help` and the pinned source before treating these as exact.

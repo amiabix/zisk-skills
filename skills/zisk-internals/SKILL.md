@@ -3,7 +3,7 @@ name: zisk-internals
 description: Explains and predicts ZisK proving cost, memory, instance planning, recursion shape, Assembly behavior, hints, and `ziskemu -X` accounting. Use when small code changes cause large cost jumps, proof RAM/time differs from emulator metrics, or hardware/prover sizing needs source-backed reasoning.
 license: MIT
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
   domain: zkvm
   triggers: ZisK internals, instance count, proving memory, OOM, recursion, ziskemu -X, Assembly, cost model, hardware sizing, proofman
   role: specialist
@@ -112,7 +112,7 @@ ulimit -l
 nvidia-smi
 cargo-zisk prove --elf <guest.elf> --inputs <input.stdin> --gpu --verbose
 cargo-zisk prove --elf <guest.elf> --inputs <input.stdin> --minimal-memory --verbose
-cargo-zisk prove --elf <guest.elf> --inputs <input.stdin> --unlock-mapped-memory --verbose
+cargo-zisk prove --elf <guest.elf> --asm --inputs <input.stdin> --unlock-mapped-memory --verbose
 ```
 
 Flags drift. Confirm with `<tool> --help` and pinned source.

@@ -3,7 +3,7 @@ name: zisk-developer
 description: Use when working with ZisK zkVM guest programs, host/prover code, ziskos, zisk-sdk, cargo-zisk, ziskemu, ZiskStdin, hints, Assembly, precompiles, proof generation flows, recursive aggregation, verifier integration, or when ZisK docs/examples/API names disagree with the target repository.
 license: MIT
 metadata:
-  version: "1.1.0"
+  version: "1.2.0"
   domain: zkvm
   triggers: ZisK, ziskos, zisk-sdk, cargo-zisk, ziskemu, guest program, host program, ZiskStdin, hints, Assembly, precompiles, recursive proof, aggregation, verifier
   role: specialist
@@ -62,10 +62,10 @@ Use `entrypoint!` for normal Rust guests. Keep public outputs compact: field ele
 ### Input Framing
 
 ```text
-ZiskStdin::write(value)      -> u64 byte length + bincode payload + 8-byte padding
-ZiskStdin::write_slice(buf)  -> u64 byte length + raw payload + 8-byte padding
+ZiskStdin::write(value)      -> u64 byte length + bincode payload + zero padding to an 8-byte boundary
+ZiskStdin::write_slice(buf)  -> u64 byte length + raw payload + zero padding to an 8-byte boundary
 io::read<T>()                -> consumes one framed typed record
-io::read_input_slice()       -> consumes one framed raw record
+io::read_slice()             -> consumes one framed raw record
 ```
 
 When building `.stdin` files by hand for `ziskemu -i`, do not write a bare payload unless the guest is written for that exact raw layout. Hexdump the file and verify every record has the 8-byte length prefix, payload bytes, and padding expected by the guest read order.
@@ -77,14 +77,15 @@ use zisk_sdk::{ExecutorKind, GuestProgram, ProverClient, ZiskStdin};
 
 async fn run_guest(elf: &str, input: impl serde::Serialize) -> anyhow::Result<()> {
     let program = GuestProgram::from_uri(elf)?;
-    let mut stdin = ZiskStdin::new();
-    stdin.write(&input)?;
+    let stdin = ZiskStdin::new();
+    stdin.write(&input);
 
     let client = ProverClient::embedded()
         .executor(ExecutorKind::Assembly)
         .build()?;
 
     client.upload(&program).run()?;
+    client.setup(&program).run()?.await?;
     let result = client.execute(&program, stdin).run()?.await?;
     println!("steps={}", result.get_execution_steps());
     Ok(())
@@ -132,6 +133,8 @@ Proof: final evidence only after execute/prove/verify path succeeds
 
 A guest that executes in emulator but fails in Assembly/proving may still be semantically correct; capture exact command, versions, ELF hash, stdin hash, executor, flags, machine, GPU, RAM, and `ulimit -l`.
 
+Current `cargo-zisk` supports the Assembly backend on Linux only; `--asm` is rejected on macOS.
+
 ## Validation Commands
 
 Use project-specific wrappers when present. Otherwise start with:
@@ -149,8 +152,8 @@ For hints, validate the Assembly path, not only emulator:
 ```bash
 RUSTFLAGS='--cfg zisk_hints' cargo build --release
 cargo-zisk setup --elf <guest.elf> --asm --hints
-cargo-zisk execute --elf <guest.elf> --asm --inputs <input.stdin> --hints file:///abs/path/hints.bin
-cargo-zisk prove --elf <guest.elf> --asm --inputs <input.stdin> --hints file:///abs/path/hints.bin
+cargo-zisk execute --elf <guest.elf> --asm --hints file:///abs/path/hints.bin
+cargo-zisk prove --elf <guest.elf> --asm --hints file:///abs/path/hints.bin
 ```
 
 Command names and flags can drift. Run `<tool> --help` and inspect the pinned source before treating these as exact.
