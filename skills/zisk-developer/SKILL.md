@@ -135,6 +135,20 @@ A guest that executes in emulator but fails in Assembly/proving may still be sem
 
 Current `cargo-zisk` supports the Assembly backend on Linux only; `--asm` is rejected on macOS.
 
+### Proof Verification Routes
+
+There are three distinct verification paths. Choose the one your consumer actually uses, then bind its expected claim yourself:
+
+```text
+cargo-zisk verify / Proof::verify() -> validates the artifact's own committed values
+ZisKOS verify_zisk_proof_c           -> validates raw VADCOP words, Poseidon1 only
+ZiskVerifier.sol                     -> validates a PLONK proof for caller-supplied calldata
+```
+
+None is an application allow-list by itself. Pin and compare the expected program VK, full ordered user publics (or a checked root), proof kind/hash family, and VADCOP/recurser `rootc` before accepting. For PLONK, inspect `ProofBody::Plonk.publics_full` and `rootc` after `proof.verify()`; `with_program_vk(...)` does not replace that comparison in the current SDK. `PublicValues` truncates to u32, so use the full-width committed fields for recurser proofs.
+
+For an in-guest proof verifier, send `Proof::get_proof_bytes()`—not the bincode `Proof::save()` artifact. Its LE-u64 format is `[minimal][n_publics][flag? | program_vk(4) | publics(64)][proof][vadcop_final_vk(4)]`. `verify_zisk_proof_c` takes the trailing four words as a caller-supplied key and fixes the hash family to `Poseidon1`; a production guest must additionally parse and compare the expected key, program VK, flavor, and claim.
+
 ## Validation Commands
 
 Use project-specific wrappers when present. Otherwise start with:

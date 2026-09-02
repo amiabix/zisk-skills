@@ -91,6 +91,26 @@ guest commit order
 
 Committed outputs are public and order-sensitive. Do not truncate, reorder, or decode with a different type layout. If many values are needed, commit a root and verify openings instead of publishing oversized data.
 
+### Proof Verification Is Not Acceptance Policy
+
+`cargo-zisk verify --proof` and `Proof::verify()` verify the proof using values carried in the proof artifact. They establish that artifact's cryptographic validity, but do **not** decide whether it is the program, proof family, verifier generation, or public claim your application accepts.
+
+For a production consumer, first verify cryptographically, then compare the *committed full-width* fields against pinned expectations: program VK, all claim-bearing user publics (or a checked root), proof kind/hash family, and the expected `rootc` / VADCOP final verifier key. Do not trust a separate `Proof.program_vk` metadata field from an untrusted serialized artifact in place of the VK committed inside the proof body.
+
+For PLONK proofs specifically, `with_program_vk(...)` is **not** an external program-identity check in the current SDK: the SNARK public hash is derived from the body's `publics_full` and `rootc`, while the overridden VK only builds an unused Solidity-layout byte string. After `proof.verify()`, inspect `ProofBody::Plonk { publics_full, rootc, .. }`, compare `publics_full[0..4]` and `rootc[0..4]` to pinned values, and check the full user-public layout. For VADCOP proofs, inspect the same committed fields in `ProofBody::Vadcop { publics_full, zisk_vk, .. }`. `PublicValues` is a lossy u32 view; do not use it to bind a recursive proof whose u64 publics may exceed 32 bits.
+
+### ZisKOS Verifies A Proof, Not Your Claim
+
+`ziskos::zisklib::verify_zisk_proof_c` verifies a raw VADCOP proof stream only. The stream produced by `Proof::get_proof_bytes()` is little-endian u64 words:
+
+```text
+[minimal][n_publics][flag? | program_vk(4) | user_publics(64)][proof][vadcop_final_vk(4)]
+```
+
+The guest verifier takes the last four words as the verifier key and hard-codes `Poseidon1`. It therefore accepts a caller-supplied valid VADCOP verifier key; it does not pin your intended program VK, user claim, or verifier generation. A guest that accepts child proofs must parse the committed prefix and suffix after validating the stream, compare the expected program VK, every claim-bearing public/root, proof flavor, and expected VADCOP final/recurser key, then commit its own checked claim. Do not pass a saved bincode proof file: pass the `get_proof_bytes()` stream exactly. The C ABI requires an 8-byte-aligned pointer and a byte length divisible by eight; reject malformed input before parsing.
+
+Minimal VADCOP proofs use 68 flag-free publics; non-minimal leaf/recurser proofs use 69, with flag `1` for a leaf and `0` for an aggregated proof. A recursive pipeline must explicitly require the shape it consumes—do not accept a compressed/minimal proof merely because the standalone ZisKOS verifier can verify it.
+
 ## Validation Commands
 
 Use project-specific negative tests first. Generic checks:
@@ -104,6 +124,8 @@ cargo-zisk prove --elf <guest.elf> --inputs <valid.stdin>
 cargo-zisk verify --proof <proof-file>
 ```
 
+Treat the last command as an artifact-integrity check only. Add a consumer test that changes one pinned VK limb, one claimed public/root, one `rootc` limb, and the proof flavor; acceptance must fail for each.
+
 For hinted paths, validate Assembly/prover mode with setup generated via `--asm --hints` or SDK Assembly `.with_hints()`. Emulator-only validation is insufficient for hinted proof behavior.
 
 ## Constraints
@@ -116,6 +138,9 @@ For hinted paths, validate Assembly/prover mode with setup generated via `--asm 
 - Treat missing witness as failure unless absence is proven from a committed value.
 - Check public output order, type, and root layout end-to-end.
 - Pin production paths to expected program/VK material.
+- Separate cryptographic proof verification from application acceptance: pin and compare the proof body's full-width program VK, claimed publics/root, proof kind/hash, and VADCOP/recurser key.
+- For PLONK artifacts, do not treat `with_program_vk(...)` as externally binding the program identity; compare the committed `ProofBody::Plonk.publics_full` and `rootc` after verification.
+- For a ZisKOS child-proof verifier, parse and bind the raw VADCOP stream's program VK, publics, flavor, and trailing verifier key in addition to calling `verify_zisk_proof_c`.
 - Run, do not merely list, a negative test for every load-bearing equality, root, hint, fcall, syscall precondition, structural count, and child-proof weld; execute each forged input on the emulator and report the observed rejection or output change.
 - Mark every accepted trust cut explicitly with owner and consequence.
 
