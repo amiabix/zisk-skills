@@ -3,13 +3,13 @@ name: zisk-developer
 description: Use when working with ZisK zkVM guest programs, host/prover code, ziskos, zisk-sdk, cargo-zisk, ziskemu, ZiskStdin, hints, Assembly, precompiles, proof generation flows, recursive aggregation, verifier integration, or when ZisK docs/examples/API names disagree with the target repository.
 license: MIT
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
   domain: zkvm
   triggers: ZisK, ziskos, zisk-sdk, cargo-zisk, ziskemu, guest program, host program, ZiskStdin, hints, Assembly, precompiles, recursive proof, aggregation, verifier
   role: specialist
   scope: implementation
   output-format: code
-  related-skills: rust-engineer, zisk-optimizer, zisk-soundness, zisk-internals
+  related-skills: rust-engineer, zisk-build, zisk-remote-prover, zisk-ffi, zisk-optimizer, zisk-soundness, zisk-internals
 ---
 
 # ZisK Developer
@@ -74,6 +74,27 @@ io::read_slice()             -> consumes one framed raw record
 ```
 
 When building `.stdin` files by hand for `ziskemu -i`, do not write a bare payload unless the guest is written for that exact raw layout. Hexdump the file and verify every record has the 8-byte length prefix, payload bytes, and padding expected by the guest read order.
+
+### Guest Runtime and Execution Modes
+
+`entrypoint!` supports the upstream guest entrypoint forms; check its pinned definition
+before choosing `fn()`, an integer-returning entrypoint, or a `Result`-returning one.
+Keep guest termination, allocator choice, and feature gates explicit. A host build or
+native test can hide guest-only allocation, `getrandom`, no-std, linker, and syscall
+behavior.
+
+Choose evidence by intent:
+
+```text
+execute-only: guest behavior; no witness/proof claim
+execute: selected execution/prover path
+verify-constraints: witness and constraint consistency; no proof artifact
+prove: proof artifact, still requiring consumer verification
+```
+
+`verify-constraints` is embedded-client-only in the current SDK and is not a proof.
+For toolchain/ELF/setup material load `zisk-build`; for a coordinator, worker, or live
+stream load `zisk-remote-prover`; for C/C++/staticlib or raw ABI code load `zisk-ffi`.
 
 ### Host/Prover Shape
 
@@ -140,7 +161,7 @@ A guest that executes in emulator but fails in Assembly/proving may still be sem
 
 Current `cargo-zisk` supports the Assembly backend on Linux only; `--asm` is rejected on macOS.
 
-### Upstream Verification Drift
+### Upstream Drift Gate
 
 Treat proof verification as release-specific code, not a stable recipe. Before writing
 or reviewing a verifier integration, pin the current upstream revision and compare it

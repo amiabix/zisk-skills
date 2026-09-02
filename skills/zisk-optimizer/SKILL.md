@@ -1,15 +1,15 @@
 ---
 name: zisk-optimizer
-description: Reduces ZisK zkVM guest steps, cost, memory, and proof time by measuring real bottlenecks, verifying acceleration paths, and replacing recomputation with theorem-preserving checks. Use for `ziskemu -X`, precompile audits, hints/Assembly/GPU behavior, witness layout, wire-format redesign, proof-shape comparisons, and cost reports.
+description: Use when optimizing ZisK zkVM guest steps, cost, memory, or proof time; interpreting `ziskemu -X`; auditing precompiles; or comparing hints, Assembly, GPU, witness layout, wire formats, and proof shapes.
 license: MIT
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
   domain: zkvm
   triggers: ZisK optimization, ziskemu -X, precompile, Assembly, hints, GPU proving, witness cost, proof time, guest cost, zkVM profiling
   role: specialist
   scope: optimization
   output-format: report
-  related-skills: zisk-developer, zisk-soundness, zisk-internals, rust-engineer
+  related-skills: zisk-developer, zisk-build, zisk-remote-prover, zisk-soundness, zisk-internals, rust-engineer
 ---
 
 # ZisK Optimizer
@@ -93,6 +93,19 @@ native deterministic hint generation
 
 Hints accelerate prover-side witness generation for precompile operations. They are not guest-visible proof facts and emulator execution is not evidence that the hinted Assembly path works. Verify command flags, setup mode, hint source size, and prover logs.
 
+### Distributed Measurements
+
+When a remote worker is involved, split guest cost from operational latency:
+
+```text
+queue delay | upload/stream delivery | setup/cache warmness | witness/proving | wrap/aggregate | download/consumer verification
+```
+
+Bind the comparison to the same ELF digest, setup/hash mode, worker hardware/GPU/MPI
+configuration, input or stream shape, and cache state. A faster job on a warm worker is
+not proof of a guest optimization. Load `zisk-remote-prover` for job lifecycle and
+deployment diagnosis rather than treating an end-to-end latency chart as emulator data.
+
 ### Strategy Ladder
 
 1. Delete duplicate work with the same predicate.
@@ -116,6 +129,14 @@ Can zkVM memory/lookup consistency replace an in-guest authenticated data struct
 Can dirty-state caching recompute only changed branches without changing the committed root?
 Can static data be pinned by config hash instead of re-read?
 ```
+
+## Upstream Drift Gate
+
+Before accepting a performance conclusion after an upstream update, compare the pinned
+revision with the candidate over `ziskos`, `sdk`, `ziskbuild`, emulator/executor,
+precompiles, and proofman/recursion paths touched by the measurement. Rebaseline if the
+diff changes instruction accounting, wrappers, hint/Assembly behavior, planner capacity,
+worker setup/cache behavior, or prover flags; old `-X` numbers are not comparable evidence.
 
 ## Validation Commands
 

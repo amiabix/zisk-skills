@@ -1,15 +1,15 @@
 ---
 name: zisk-internals
-description: Explains and predicts ZisK proving cost, memory, instance planning, recursion shape, Assembly behavior, hints, and `ziskemu -X` accounting. Use when small code changes cause large cost jumps, proof RAM/time differs from emulator metrics, or hardware/prover sizing needs source-backed reasoning.
+description: Use when small ZisK changes cause large cost jumps, proof RAM/time differs from emulator metrics, or explaining instance planning, recursion shape, Assembly, hints, `ziskemu -X` accounting, and hardware/prover sizing needs source-backed reasoning.
 license: MIT
 metadata:
-  version: "1.2.0"
+  version: "1.3.0"
   domain: zkvm
   triggers: ZisK internals, instance count, proving memory, OOM, recursion, ziskemu -X, Assembly, cost model, hardware sizing, proofman
   role: specialist
   scope: diagnosis
   output-format: explanation
-  related-skills: zisk-developer, zisk-optimizer, debugging-wizard
+  related-skills: zisk-developer, zisk-build, zisk-remote-prover, zisk-optimizer, debugging-wizard
 ---
 
 # ZisK Internals
@@ -91,6 +91,23 @@ basic STARKs
 ```
 
 The exact layer names and roster are source-version-specific. Always read the pinned proofman/recursion source before quoting details.
+
+### Artifact and Fleet Effects
+
+An instance/proof explanation is incomplete if it omits build and placement identity.
+Record the guest ELF digest, hash mode, setup/key generation, and whether a local or
+remote worker reused a warm setup cache. `verify-constraints` checks constraints but is
+not a proof, and remote execution is not remote proving. Use `zisk-build` for target,
+ELF, and setup provenance; use `zisk-remote-prover` for queue, stream, cache, and
+worker-capacity evidence.
+
+## Upstream Drift Gate
+
+Before quoting an internal mechanism across a ZisK upgrade, diff the pinned revision
+against the candidate over the executor, emulator statistics, state machines/planner,
+proofman/recursion, SDK client mode, and distributed worker setup paths relevant to the
+claim. Reproduce the smallest command that demonstrates any changed capacity, cost,
+memory, or recursion behavior.
 
 ## Validation Commands
 
